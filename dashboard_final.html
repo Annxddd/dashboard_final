@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observatorio Acústico — Smart City Panamá</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@200;300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:        #04080f;
+    --bg2:       #080e1a;
+    --panel:     #0b1220;
+    --border:    #1a2a3a;
+    --accent:    #00e5ff;
+    --accent2:   #0066ff;
+    --safe:      #00e676;
+    --warn:      #ffd600;
+    --danger:    #ff1744;
+    --text:      #c8d8e8;
+    --text-dim:  #4a6070;
+    --glow:      0 0 18px rgba(0,229,255,.25);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Exo 2', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content:'';
+    position:fixed;
+    inset:0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,229,255,.015) 2px, rgba(0,229,255,.015) 4px
+    );
+    pointer-events:none;
+    z-index:9999;
+  }
+
+  body::after {
+    content:'';
+    position:fixed;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(0,229,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  header {
+    position:relative; z-index:10;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 32px;
+    border-bottom:1px solid var(--border);
+    background: linear-gradient(90deg, var(--bg2) 0%, rgba(0,102,255,.05) 50%, var(--bg2) 100%);
+  }
+
+  .brand { display:flex; align-items:center; gap:16px; }
+
+  .brand-icon {
+    width:44px; height:44px; border-radius:8px;
+    border:1px solid var(--accent);
+    display:flex; align-items:center; justify-content:center;
+    background: rgba(0,229,255,.07);
+    box-shadow: var(--glow);
+    animation: pulse-icon 3s ease-in-out infinite;
+  }
+  @keyframes pulse-icon {
+    0%,100%{ box-shadow: 0 0 12px rgba(0,229,255,.2); }
+    50%    { box-shadow: 0 0 28px rgba(0,229,255,.5); }
+  }
+  .brand-icon svg { width:24px; height:24px; }
+
+  .brand-text h1 {
+    font-family: 'Rajdhani', sans-serif; font-weight:700;
+    font-size:1.25rem; letter-spacing:2px; color:#fff; text-transform:uppercase;
+  }
+  .brand-text p {
+    font-size:.72rem; color:var(--text-dim);
+    letter-spacing:1px; text-transform:uppercase;
+    font-family:'Share Tech Mono', monospace;
+  }
+
+  .header-right { display:flex; align-items:center; gap:24px; }
+
+  #reloj {
+    font-family:'Share Tech Mono', monospace;
+    font-size:.9rem; color:var(--accent); letter-spacing:2px;
+  }
+
+  .badge-live {
+    display:flex; align-items:center; gap:6px;
+    font-size:.7rem; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--safe); font-family:'Share Tech Mono', monospace;
+  }
+  .dot-live {
+    width:7px; height:7px; border-radius:50%;
+    background:var(--safe); animation: blink 1.2s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{ opacity:1; } 50%{ opacity:.2; } }
+
+  .main {
+    position:relative; z-index:10;
+    padding:24px 28px;
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap:16px;
+    max-width:1600px; margin:0 auto;
+  }
+
+  .panel {
+    background:var(--panel); border:1px solid var(--border);
+    border-radius:10px; padding:20px;
+    position:relative; overflow:hidden; transition: border-color .3s;
+  }
+  .panel::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity:.4;
+  }
+  .panel:hover { border-color: rgba(0,229,255,.35); }
+
+  .panel-title {
+    font-family:'Rajdhani', sans-serif; font-size:.72rem;
+    letter-spacing:2.5px; text-transform:uppercase;
+    color:var(--text-dim); margin-bottom:14px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .panel-title span { color:var(--accent); font-size:.8rem; }
+
+  .kpi { grid-column: span 1; }
+  .kpi-val {
+    font-family:'Rajdhani', sans-serif; font-size:2.8rem;
+    font-weight:700; line-height:1; color:#fff; letter-spacing:1px;
+  }
+  .kpi-unit { font-size:.85rem; color:var(--accent); font-family:'Share Tech Mono', monospace; margin-left:4px; }
+  .kpi-label { font-size:.7rem; color:var(--text-dim); letter-spacing:1.5px; text-transform:uppercase; margin-top:6px; }
+  .kpi-badge {
+    display:inline-block; margin-top:10px; padding:3px 12px; border-radius:20px;
+    font-size:.68rem; font-family:'Share Tech Mono', monospace;
+    letter-spacing:1px; text-transform:uppercase; font-weight:700;
+  }
+  .badge-safe    { background:rgba(0,230,118,.15); color:var(--safe);   border:1px solid rgba(0,230,118,.3); }
+  .badge-elevado { background:rgba(255,214,0,.12);  color:var(--warn);   border:1px solid rgba(255,214,0,.3); }
+  .badge-peligro { background:rgba(255,23,68,.15);  color:var(--danger); border:1px solid rgba(255,23,68,.35); animation: danger-pulse 1s ease-in-out infinite; }
+  @keyframes danger-pulse { 0%,100%{ box-shadow:none; } 50%{ box-shadow: 0 0 14px rgba(255,23,68,.45); } }
+
+  .gauge-wrap { grid-column: span 2; grid-row: span 2; }
+  .gauge-inner { display:flex; flex-direction:column; align-items:center; padding:10px 0; }
+  #gauge-canvas { max-width:280px; width:100%; }
+  .gauge-reading { font-family:'Rajdhani', sans-serif; font-size:3.6rem; font-weight:700; color:#fff; line-height:1; margin-top:-10px; }
+  .gauge-reading sub { font-size:1.2rem; color:var(--accent); vertical-align:baseline; }
+  #gauge-estado { font-family:'Share Tech Mono', monospace; font-size:.8rem; letter-spacing:2px; margin-top:8px; padding:4px 18px; border-radius:20px; text-transform:uppercase; }
+  .gauge-labels { display:flex; justify-content:space-between; width:100%; margin-top:12px; font-size:.65rem; font-family:'Share Tech Mono', monospace; color:var(--text-dim); }
+
+  .wave-panel { grid-column: span 2; }
+  #wave-canvas { width:100%; height:80px; }
+
+  .chart-panel { grid-column: span 4; }
+  #line-canvas { width:100% !important; height:200px !important; }
+
+  .dist-panel { grid-column: span 2; }
+  #dist-canvas { height:200px !important; }
+
+  .alerts-panel { grid-column: span 2; }
+  .alert-list { list-style:none; display:flex; flex-direction:column; gap:8px; max-height:200px; overflow-y:auto; }
+  .alert-list::-webkit-scrollbar { width:3px; }
+  .alert-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+  .alert-item {
+    display:flex; align-items:center; gap:10px; padding:8px 12px;
+    background:rgba(255,23,68,.06); border:1px solid rgba(255,23,68,.15);
+    border-radius:6px; font-size:.75rem; font-family:'Share Tech Mono', monospace;
+    animation: slideIn .3s ease;
+  }
+  @keyframes slideIn { from { opacity:0; transform:translateX(10px); } to { opacity:1; transform:translateX(0); } }
+  .alert-db { color:var(--danger); font-weight:700; font-size:.85rem; min-width:60px; }
+  .alert-region { color:#fff; }
+  .alert-ts { color:var(--text-dim); margin-left:auto; font-size:.65rem; }
+
+  .table-panel { grid-column: span 4; }
+  .data-table { width:100%; border-collapse:collapse; font-size:.75rem; font-family:'Share Tech Mono', monospace; }
+  .data-table th { color:var(--text-dim); text-transform:uppercase; letter-spacing:1.5px; font-size:.65rem; padding:8px 12px; border-bottom:1px solid var(--border); text-align:left; background:rgba(0,229,255,.03); }
+  .data-table td { padding:8px 12px; border-bottom:1px solid rgba(26,42,58,.6); color:var(--text); transition:background .2s; }
+  .data-table tr:hover td { background:rgba(0,229,255,.04); }
+  .data-table tbody tr:first-child td { color:#fff; }
+  .nivel-cell { display:inline-block; padding:2px 8px; border-radius:10px; font-size:.65rem; font-weight:700; }
+
+  /* ── NGROK MODAL ── */
+  #ngrok-overlay {
+    position:fixed; inset:0;
+    background:rgba(4,8,15,.93); backdrop-filter:blur(10px);
+    z-index:10000; display:flex; align-items:center; justify-content:center;
+    animation:fadeOv .3s ease;
+  }
+  #ngrok-overlay.hidden { display:none; }
+  @keyframes fadeOv { from{opacity:0} to{opacity:1} }
+
+  .ngrok-modal {
+    background:var(--panel); border:1px solid var(--accent); border-radius:16px;
+    padding:36px 40px; width:500px; max-width:94vw; position:relative;
+    box-shadow:0 0 60px rgba(0,229,255,.15),0 0 120px rgba(0,102,255,.08);
+    animation:slideM .35s cubic-bezier(.25,.8,.25,1);
+  }
+  @keyframes slideM { from{opacity:0;transform:translateY(-18px)} to{opacity:1;transform:none} }
+  .ngrok-modal::before {
+    content:''; position:absolute; top:0; left:12%; right:12%; height:2px;
+    background:linear-gradient(90deg,transparent,var(--accent),transparent); border-radius:2px;
+  }
+  .modal-icon {
+    width:50px; height:50px; border-radius:12px;
+    border:1px solid rgba(0,229,255,.35); background:rgba(0,229,255,.07);
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom:18px; box-shadow:var(--glow);
+  }
+  .modal-icon svg { width:24px; height:24px; }
+  .ngrok-modal h2 { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.35rem; letter-spacing:2px; color:#fff; text-transform:uppercase; margin-bottom:5px; }
+  .modal-sub { font-size:.76rem; color:var(--text-dim); font-family:'Share Tech Mono',monospace; letter-spacing:.8px; margin-bottom:26px; line-height:1.65; }
+
+  .input-group { display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
+  .input-group label { font-size:.65rem; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; font-family:'Share Tech Mono',monospace; }
+  .input-wrap { display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; transition:border-color .2s,box-shadow .2s; }
+  .input-wrap:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,229,255,.1); }
+  .input-prefix { background:rgba(0,229,255,.06); border-right:1px solid var(--border); padding:0 12px; display:flex; align-items:center; font-family:'Share Tech Mono',monospace; font-size:.74rem; color:var(--accent); white-space:nowrap; flex-shrink:0; }
+  #ngrok-url-input { flex:1; background:rgba(255,255,255,.03); border:none; outline:none; padding:11px 13px; color:#fff; font-family:'Share Tech Mono',monospace; font-size:.82rem; letter-spacing:.5px; }
+  #ngrok-url-input::placeholder { color:var(--text-dim); font-size:.74rem; }
+  .input-hint { font-size:.64rem; color:var(--text-dim); font-family:'Share Tech Mono',monospace; }
+
+  #ngrok-status { display:flex; align-items:center; gap:8px; padding:9px 13px; border-radius:8px; font-size:.71rem; font-family:'Share Tech Mono',monospace; letter-spacing:.8px; margin-bottom:20px; border:1px solid transparent; transition:all .3s; }
+  #ngrok-status.idle    { background:rgba(74,96,112,.1);  border-color:var(--border); color:var(--text-dim); }
+  #ngrok-status.testing { background:rgba(0,102,255,.08); border-color:rgba(0,102,255,.3); color:#6699ff; }
+  #ngrok-status.ok      { background:rgba(0,230,118,.08); border-color:rgba(0,230,118,.3); color:var(--safe); }
+  #ngrok-status.error   { background:rgba(255,23,68,.08); border-color:rgba(255,23,68,.3); color:var(--danger); }
+  .status-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; background:currentColor; }
+
+  .modal-actions { display:flex; gap:10px; }
+  .btn-connect { flex:1; padding:12px; border:none; border-radius:8px; background:var(--accent); color:#04080f; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:.98rem; letter-spacing:2px; text-transform:uppercase; cursor:pointer; transition:all .2s; }
+  .btn-connect:hover { background:#00ccee; box-shadow:0 0 20px rgba(0,229,255,.4); }
+  .btn-connect:disabled { opacity:.4; cursor:not-allowed; }
+  .btn-skip { padding:12px 20px; border:1px solid var(--border); border-radius:8px; background:transparent; color:var(--text-dim); font-family:'Rajdhani',sans-serif; font-weight:600; font-size:.88rem; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; transition:all .2s; }
+  .btn-skip:hover { border-color:var(--text-dim); color:#fff; }
+
+  #btn-ngrok { display:flex; align-items:center; gap:6px; padding:6px 14px; border:1px solid var(--border); border-radius:6px; background:rgba(255,255,255,.03); color:var(--text-dim); font-family:'Share Tech Mono',monospace; font-size:.68rem; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; transition:all .2s; }
+  #btn-ngrok:hover { border-color:var(--accent); color:var(--accent); }
+  #btn-ngrok svg { width:12px; height:12px; }
+
+  #conn-bar { position:relative; z-index:10; display:flex; align-items:center; gap:8px; padding:6px 32px; font-size:.67rem; font-family:'Share Tech Mono',monospace; letter-spacing:.9px; border-bottom:1px solid var(--border); background:rgba(8,14,26,.7); transition:all .3s; }
+  #conn-bar.connected    { border-bottom-color:rgba(0,230,118,.2); }
+  #conn-bar.disconnected { border-bottom-color:rgba(255,23,68,.2); }
+  #conn-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; transition:all .3s; }
+  #conn-bar.connected    #conn-dot { background:var(--safe);   box-shadow:0 0 6px var(--safe); }
+  #conn-bar.disconnected #conn-dot { background:var(--danger); box-shadow:0 0 6px var(--danger); animation:blink 1s infinite; }
+  #conn-bar.idle         #conn-dot { background:var(--text-dim); }
+  #conn-label { transition:color .3s; }
+  #conn-bar.connected    #conn-label { color:var(--safe); }
+  #conn-bar.disconnected #conn-label { color:var(--danger); }
+  #conn-bar.idle         #conn-label { color:var(--text-dim); }
+  #conn-url   { color:var(--accent); opacity:.65; margin-left:2px; }
+  #conn-change { margin-left:auto; color:var(--text-dim); cursor:pointer; text-decoration:underline; text-underline-offset:2px; transition:color .2s; }
+  #conn-change:hover { color:var(--accent); }
+
+  @media(max-width:900px) {
+    .main { grid-template-columns:1fr 1fr; padding:12px; }
+    .kpi,.wave-panel,.chart-panel,.dist-panel,.alerts-panel,.table-panel { grid-column:span 2; }
+    .gauge-wrap { grid-column:span 2; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NGROK MODAL -->
+<div id="ngrok-overlay">
+  <div class="ngrok-modal">
+    <div class="modal-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+      </svg>
+    </div>
+    <h2>Conexión ngrok</h2>
+    <p class="modal-sub">
+      Ingresa la URL pública de ngrok para conectar<br/>
+      el dashboard con tu Arduino UNO Q en vivo.
+    </p>
+
+    <div class="input-group">
+      <label>URL de ngrok</label>
+      <div class="input-wrap">
+        <div class="input-prefix">https://</div>
+        <input id="ngrok-url-input" type="text"
+          placeholder="xxxx-xx-xx-xxx-xx.ngrok-free.app"
+          autocomplete="off" spellcheck="false"/>
+      </div>
+      <span class="input-hint">No incluyas https:// &nbsp;·&nbsp; Ej: remindful-catsup-spokesman.ngrok-free.dev</span>
+    </div>
+
+    <div id="ngrok-status" class="idle" style="margin-top:14px">
+      <div class="status-dot"></div>
+      <span id="ngrok-status-text">Esperando configuración…</span>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-connect" id="btn-connect" onclick="conectarNgrok()">⚡ Conectar</button>
+      <button class="btn-skip" onclick="saltarConexion()">Omitir</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="1.8" stroke-linecap="round">
+        <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+        <circle cx="12" cy="12" r="4"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <h1>Observatorio Acústico</h1>
+      <p>Smart City Panamá · Arduino UNO Q · Tiempo Real</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="badge-live"><div class="dot-live"></div>EN VIVO</div>
+    <div id="reloj">--:--:--</div>
+    <button id="btn-ngrok" onclick="abrirModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+      </svg>
+      NGROK
+    </button>
+  </div>
+</header>
+
+<div id="conn-bar" class="idle">
+  <div id="conn-dot"></div>
+  <span id="conn-label">Sin conexión ngrok</span>
+  <span id="conn-url"></span>
+  <span id="conn-change" onclick="abrirModal()">Cambiar URL</span>
+</div>
+
+<div class="main">
+
+  <div class="panel kpi">
+    <div class="panel-title"><span>◈</span> Nivel Sonoro</div>
+    <div class="kpi-val" id="kpi-db">--<span class="kpi-unit">dB</span></div>
+    <div class="kpi-label" id="kpi-region">-- Sin señal --</div>
+    <div id="kpi-nivel-badge" class="kpi-badge badge-safe">–</div>
+  </div>
+
+  <div class="panel kpi">
+    <div class="panel-title"><span>◈</span> Temperatura</div>
+    <div class="kpi-val" id="kpi-temp">--<span class="kpi-unit">°C</span></div>
+    <div class="kpi-label">BME280</div>
+  </div>
+
+  <div class="panel kpi">
+    <div class="panel-title"><span>◈</span> Humedad</div>
+    <div class="kpi-val" id="kpi-hum">--<span class="kpi-unit">%</span></div>
+    <div class="kpi-label">Humedad relativa</div>
+  </div>
+
+  <div class="panel kpi">
+    <div class="panel-title"><span>◈</span> Vibración</div>
+    <div class="kpi-val" id="kpi-vib">--<span class="kpi-unit">m/s²</span></div>
+    <div class="kpi-label">MPU6050 Accel Z</div>
+  </div>
+
+  <div class="panel gauge-wrap">
+    <div class="panel-title"><span>◈</span> Medidor de Decibeles</div>
+    <div class="gauge-inner">
+      <canvas id="gauge-canvas" height="160"></canvas>
+      <div class="gauge-reading" id="gauge-num">0<sub> dB</sub></div>
+      <div id="gauge-estado" class="badge-safe">SILENCIO</div>
+      <div class="gauge-labels">
+        <span>0 dB</span><span>30</span><span>45</span><span>65</span><span>85</span><span>100 dB</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel wave-panel">
+    <div class="panel-title"><span>◈</span> Forma de Onda Sonora</div>
+    <canvas id="wave-canvas"></canvas>
+  </div>
+
+  <div class="panel chart-panel">
+    <div class="panel-title"><span>◈</span> Serie Temporal — Últimas 24 horas (dB promedio/hora)</div>
+    <canvas id="line-canvas"></canvas>
+  </div>
+
+  <div class="panel dist-panel">
+    <div class="panel-title"><span>◈</span> Distribución por Nivel</div>
+    <canvas id="dist-canvas"></canvas>
+  </div>
+
+  <div class="panel alerts-panel">
+    <div class="panel-title"><span>◈</span> Alertas Recientes</div>
+    <ul class="alert-list" id="alert-list">
+      <li style="color:var(--text-dim);font-size:.75rem;font-family:'Share Tech Mono',monospace;padding:8px">Cargando alertas…</li>
+    </ul>
+  </div>
+
+  <div class="panel table-panel">
+    <div class="panel-title"><span>◈</span> Últimas Mediciones</div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>dB</th>
+            <th>Nivel</th>
+            <th>Vibración</th>
+            <th>Temperatura</th>
+            <th>Humedad</th>
+            <th>Presión</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-dim)">Conecta ngrok para ver datos…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  URL NGROK — pre-cargada, editable desde el modal
+// ═══════════════════════════════════════════
+const NGROK_DEFAULT = "remindful-catsup-spokesman.ngrok-free.dev";
+
+let API = '';
+let connected = false;
+let pollingActive = false;
+
+// Headers requeridos por ngrok (evita la pantalla de advertencia)
+function buildHeaders() {
+  return {
+    'ngrok-skip-browser-warning': 'true',
+    'Content-Type': 'application/json'
+  };
+}
+
+// ── Cargar URL guardada o usar la default ──
+(function () {
+  const saved = localStorage.getItem('ngrok_url') || NGROK_DEFAULT;
+  document.getElementById('ngrok-url-input').value = saved;
+})();
+
+// ── Modal ──
+function abrirModal() {
+  document.getElementById('ngrok-overlay').classList.remove('hidden');
+  setModalStatus('idle', 'Esperando configuración…');
+}
+function cerrarModal() {
+  document.getElementById('ngrok-overlay').classList.add('hidden');
+}
+function saltarConexion() {
+  cerrarModal();
+  setConnBar('disconnected', 'Sin ngrok — sin datos en vivo', '');
+}
+function setModalStatus(state, msg) {
+  const el = document.getElementById('ngrok-status');
+  el.className = state;
+  document.getElementById('ngrok-status-text').textContent = msg;
+}
+function setConnBar(state, label, url) {
+  const bar = document.getElementById('conn-bar');
+  bar.className = state;
+  document.getElementById('conn-label').textContent = label;
+  document.getElementById('conn-url').textContent   = url ? `· ${url}` : '';
+}
+
+async function conectarNgrok() {
+  const raw = document.getElementById('ngrok-url-input').value.trim();
+  if (!raw) { setModalStatus('error', 'Ingresa la URL de ngrok'); return; }
+
+  const host = raw.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+  const url  = `https://${host}`;
+
+  setModalStatus('testing', 'Probando conexión…');
+  document.getElementById('btn-connect').disabled = true;
+
+  try {
+    const resp = await fetch(`${url}/api/tiempo-real`, {
+      headers: buildHeaders(),
+      signal: AbortSignal.timeout(7000)
+    });
+    if (resp.ok) {
+      API = url;
+      localStorage.setItem('ngrok_url', host);
+      connected = true;
+      setModalStatus('ok', `✓ Conectado — ${host}`);
+      setConnBar('connected', 'Conectado vía ngrok', host);
+      setTimeout(() => { cerrarModal(); fullRefresh(); iniciarPolling(); }, 800);
+    } else {
+      setModalStatus('error', `Error ${resp.status} — verifica que api.py esté corriendo`);
+    }
+  } catch (e) {
+    const msg = e.name === 'TimeoutError' ? 'Tiempo agotado (7 s)' : 'No se pudo alcanzar el servidor';
+    setModalStatus('error', `✗ ${msg}`);
+  } finally {
+    document.getElementById('btn-connect').disabled = false;
+  }
+}
+
+document.getElementById('ngrok-url-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') conectarNgrok();
+});
+
+// ═══════════════════════════════════════════
+//  RELOJ
+// ═══════════════════════════════════════════
+function tickClock() {
+  document.getElementById('reloj').textContent =
+    new Date().toLocaleTimeString('es-PA', { timeZone: 'America/Panama', hour12: false });
+}
+setInterval(tickClock, 1000); tickClock();
+
+// ═══════════════════════════════════════════
+//  GAUGE
+// ═══════════════════════════════════════════
+const gCanvas = document.getElementById('gauge-canvas');
+const gCtx    = gCanvas.getContext('2d');
+let waveDb    = 0;
+
+function drawGauge(db) {
+  const W = gCanvas.offsetWidth || 280;
+  gCanvas.width  = W;
+  gCanvas.height = W * 0.6;
+  const cx = W/2, cy = W*0.55, R = W*0.42;
+  gCtx.clearRect(0, 0, W, gCanvas.height);
+
+  gCtx.beginPath();
+  gCtx.arc(cx, cy, R, Math.PI, 0, false);
+  gCtx.strokeStyle = '#1a2a3a'; gCtx.lineWidth = 18; gCtx.lineCap = 'round'; gCtx.stroke();
+
+  [{from:0,to:45,color:'#00e676'},{from:45,to:65,color:'#ffd600'},{from:65,to:100,color:'#ff1744'}].forEach(b => {
+    gCtx.beginPath();
+    gCtx.arc(cx, cy, R, Math.PI+(b.from/100)*Math.PI, Math.PI+(b.to/100)*Math.PI, false);
+    gCtx.strokeStyle = b.color+'55'; gCtx.lineWidth = 18; gCtx.lineCap = 'butt'; gCtx.stroke();
+  });
+
+  const pct   = Math.min(db, 100) / 100;
+  const color = db <= 45 ? '#00e676' : db <= 65 ? '#ffd600' : '#ff1744';
+  gCtx.beginPath();
+  gCtx.arc(cx, cy, R, Math.PI, Math.PI + pct*Math.PI, false);
+  gCtx.strokeStyle = color; gCtx.lineWidth = 18; gCtx.lineCap = 'round';
+  gCtx.shadowColor = color; gCtx.shadowBlur = 16; gCtx.stroke(); gCtx.shadowBlur = 0;
+
+  const angle = Math.PI + pct*Math.PI;
+  gCtx.beginPath();
+  gCtx.moveTo(cx, cy);
+  gCtx.lineTo(cx+(R-24)*Math.cos(angle), cy+(R-24)*Math.sin(angle));
+  gCtx.strokeStyle = '#fff'; gCtx.lineWidth = 2; gCtx.stroke();
+
+  gCtx.beginPath(); gCtx.arc(cx, cy, 5, 0, Math.PI*2);
+  gCtx.fillStyle = '#fff'; gCtx.fill();
+}
+drawGauge(0);
+window.addEventListener('resize', () => drawGauge(waveDb));
+
+// ═══════════════════════════════════════════
+//  WAVEFORM
+// ═══════════════════════════════════════════
+const wCanvas = document.getElementById('wave-canvas');
+const wCtx    = wCanvas.getContext('2d');
+let wavePhase = 0;
+
+function drawWave() {
+  wCanvas.width  = wCanvas.offsetWidth  || 400;
+  wCanvas.height = wCanvas.offsetHeight || 80;
+  const W = wCanvas.width, H = wCanvas.height;
+  wCtx.clearRect(0, 0, W, H);
+  const amp   = Math.max(4, (waveDb/100)*H*0.42);
+  const color = waveDb <= 45 ? '#00e676' : waveDb <= 65 ? '#ffd600' : '#ff1744';
+  wCtx.beginPath();
+  for (let x=0; x<W; x++) {
+    const y = H/2 + Math.sin((x/W)*Math.PI*8+wavePhase)*amp*Math.sin((x/W)*Math.PI);
+    x===0 ? wCtx.moveTo(x,y) : wCtx.lineTo(x,y);
+  }
+  wCtx.strokeStyle = color; wCtx.lineWidth = 2;
+  wCtx.shadowColor = color; wCtx.shadowBlur = 8; wCtx.stroke(); wCtx.shadowBlur = 0;
+  wavePhase += 0.12;
+  requestAnimationFrame(drawWave);
+}
+drawWave();
+
+// ═══════════════════════════════════════════
+//  CHARTS
+// ═══════════════════════════════════════════
+const lineChart = new Chart(document.getElementById('line-canvas').getContext('2d'), {
+  type:'line',
+  data:{ labels:[], datasets:[{ label:'dB promedio', data:[], borderColor:'#00e5ff', backgroundColor:'rgba(0,229,255,.07)', borderWidth:2, pointRadius:3, pointBackgroundColor:'#00e5ff', tension:.4, fill:true }]},
+  options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#4a6070',font:{family:'Share Tech Mono',size:9},maxRotation:45},grid:{color:'rgba(26,42,58,.6)'}}, y:{ticks:{color:'#4a6070',font:{family:'Share Tech Mono',size:9}},grid:{color:'rgba(26,42,58,.6)'},min:0,suggestedMax:100} } }
+});
+
+const distChart = new Chart(document.getElementById('dist-canvas').getContext('2d'), {
+  type:'doughnut',
+  data:{ labels:['Seguro','Elevado','Peligroso'], datasets:[{ data:[1,0,0], backgroundColor:['rgba(0,230,118,.7)','rgba(255,214,0,.7)','rgba(255,23,68,.7)'], borderColor:['#00e676','#ffd600','#ff1744'], borderWidth:1, hoverOffset:6 }]},
+  options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#c8d8e8',font:{family:'Exo 2',size:11},padding:14}}}, cutout:'65%' }
+});
+
+// ═══════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════
+function nivelClass(n='') {
+  const v = n.toLowerCase();
+  if (v.includes('pelig')||v.includes('alto')) return 'badge-peligro';
+  if (v.includes('elev')||v.includes('medio')) return 'badge-elevado';
+  return 'badge-safe';
+}
+function nivelColor(n='') {
+  const v = n.toLowerCase();
+  if (v.includes('pelig')||v.includes('alto'))  return 'var(--danger)';
+  if (v.includes('elev') ||v.includes('medio')) return 'var(--warn)';
+  return 'var(--safe)';
+}
+
+function updateKPIs(d) {
+  const db    = parseFloat(d.dB) || 0;
+  const nivel = d.nivel || 'SILENCIO';
+  document.getElementById('kpi-db').innerHTML    = `${db.toFixed(1)}<span class="kpi-unit">dB</span>`;
+  document.getElementById('kpi-region').textContent = d.region || 'UNO-Q';
+  const badge = document.getElementById('kpi-nivel-badge');
+  badge.textContent = nivel; badge.className = `kpi-badge ${nivelClass(nivel)}`;
+  drawGauge(db);
+  document.getElementById('gauge-num').innerHTML = `${db.toFixed(0)}<sub> dB</sub>`;
+  const gEl = document.getElementById('gauge-estado');
+  gEl.textContent = nivel; gEl.className = nivelClass(nivel);
+  waveDb = db;
+  document.getElementById('kpi-temp').innerHTML = `${parseFloat(d.temperatura||0).toFixed(1)}<span class="kpi-unit">°C</span>`;
+  document.getElementById('kpi-hum').innerHTML  = `${parseFloat(d.humedad||0).toFixed(1)}<span class="kpi-unit">%</span>`;
+  document.getElementById('kpi-vib').innerHTML  = `${parseFloat(d.vibracion||0).toFixed(3)}<span class="kpi-unit">m/s²</span>`;
+}
+
+function updateTable(rows) {
+  const tbody = document.getElementById('table-body');
+  if (!rows?.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-dim)">Sin datos</td></tr>'; return; }
+  tbody.innerHTML = rows.slice(0,20).map(r => {
+    const c = nivelColor(r.nivel);
+    return `<tr>
+      <td>${r.timestamp||''}</td>
+      <td style="color:${c};font-weight:600">${parseFloat(r.dB||0).toFixed(1)}</td>
+      <td><span class="nivel-cell" style="background:${c}22;color:${c};border:1px solid ${c}44">${r.nivel||'–'}</span></td>
+      <td>${parseFloat(r.vibracion||0).toFixed(3)}</td>
+      <td>${parseFloat(r.temperatura||0).toFixed(1)} °C</td>
+      <td>${parseFloat(r.humedad||0).toFixed(1)} %</td>
+      <td>${parseFloat(r.presion||0).toFixed(1)} hPa</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateAlerts(rows) {
+  const ul = document.getElementById('alert-list');
+  if (!rows?.length) { ul.innerHTML='<li style="color:var(--text-dim);font-size:.75rem;font-family:Share Tech Mono,monospace;padding:8px">Sin alertas recientes</li>'; return; }
+  ul.innerHTML = rows.slice(0,8).map(a => `
+    <li class="alert-item">
+      <span class="alert-db">${parseFloat(a.dB||0).toFixed(0)} dB</span>
+      <span class="alert-region">${a.nivel||'–'} · ${(a.timestamp||'').slice(11,16)}</span>
+      <span class="alert-ts">${(a.timestamp||'').slice(5,10)}</span>
+    </li>`).join('');
+}
+
+function updateLineChart(rows) {
+  if (!rows?.length) return;
+  lineChart.data.labels = rows.map(r => (r.hora||'').slice(11,16));
+  lineChart.data.datasets[0].data = rows.map(r => parseFloat(r.promedio_dB||0));
+  lineChart.update('none');
+}
+
+function updateDistChart(rows) {
+  if (!rows?.length) return;
+  const m = {seguro:0,elevado:0,peligroso:0};
+  rows.forEach(r => {
+    const n = (r.nivel||'').toLowerCase();
+    if (n.includes('pelig')||n.includes('alto')) m.peligroso += Number(r.cantidad||1);
+    else if (n.includes('elev')||n.includes('medio')) m.elevado += Number(r.cantidad||1);
+    else m.seguro += Number(r.cantidad||1);
+  });
+  distChart.data.datasets[0].data = [m.seguro, m.elevado, m.peligroso];
+  distChart.update('none');
+}
+
+// ═══════════════════════════════════════════
+//  FETCH
+// ═══════════════════════════════════════════
+async function fetchJSON(path) {
+  if (!API) return null;
+  try {
+    const r = await fetch(API + path, { headers: buildHeaders(), signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+async function pollTiempoReal() {
+  const d = await fetchJSON('/api/tiempo-real');
+  if (d && d.dB !== undefined) {
+    updateKPIs(d);
+    if (!connected) { connected=true; setConnBar('connected','Conectado vía ngrok', API.replace('https://','')); }
+  } else if (API) {
+    connected = false;
+    setConnBar('disconnected','Conexión perdida — reintentando…','');
+  }
+}
+
+async function fullRefresh() {
+  if (!API) return;
+  const [med, serie, dist, alertas] = await Promise.all([
+    fetchJSON('/api/mediciones?limit=20'),
+    fetchJSON('/api/serie-horaria?dias=1'),
+    fetchJSON('/api/distribucion'),
+    fetchJSON('/api/alertas'),
+  ]);
+  if (med)     updateTable(med);
+  if (serie)   updateLineChart(serie);
+  if (dist)    updateDistChart(dist);
+  if (alertas) updateAlerts(alertas);
+}
+
+function iniciarPolling() {
+  if (pollingActive) return;
+  pollingActive = true;
+  setInterval(pollTiempoReal, 5000);
+  setInterval(fullRefresh, 30000);
+}
+</script>
+</body>
+</html>
